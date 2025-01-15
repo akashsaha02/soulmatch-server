@@ -10,7 +10,12 @@ const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
 
 // middlewares
-app.use(cors());
+app.use(cors(
+    {
+        origin: 'http://localhost:5173',
+        credentials: true
+    }
+));
 app.use(express.json());
 
 const uri = process.env.MONGO_URI;
@@ -87,7 +92,6 @@ async function run() {
             res.send(isAdmin);
         });
 
-
         app.post('/users', async (req, res) => {
             const user = req.body;
             const query = { email: user.email };
@@ -103,9 +107,6 @@ async function run() {
             const result = await userCollection.insertOne(user);
             res.json(result);
         });
-
-
-
 
         // Update User Role
         app.patch('/users/role/:id', verifyToken, async (req, res) => {
@@ -127,6 +128,49 @@ async function run() {
             res.json(result);
         });
 
+
+        // Fetch all biodatas
+        app.get('/biodatas', async (req, res) => {
+            try {
+                const biodatas = await biodataCollection.find().toArray();
+                res.send(biodatas);
+            } catch (error) {
+                res.status(500).send({ error: "Failed to fetch biodatas" });
+            }
+        });
+
+        // Create a new biodata
+        app.post('/biodatas', verifyToken, async (req, res) => {
+            try {
+                const biodata = req.body;
+
+                // Check if biodata already exists for the user
+                const existingBiodata = await biodataCollection.findOne({ userEmail: biodata.userEmail });
+
+                if (existingBiodata) {
+                    // Update existing biodata
+                    const result = await biodataCollection.updateOne(
+                        { userEmail: biodata.userEmail },
+                        { $set: biodata }
+                    );
+                    res.status(200).json({ message: "Biodata updated successfully", result });
+                } else {
+                    // Find the last created biodata to determine the next id
+                    const lastBiodata = await biodataCollection.find().sort({ biodataId: -1 }).limit(1).toArray();
+                    const lastId = lastBiodata.length ? lastBiodata[0].biodataId : 0;
+
+                    // Set the new biodata ID
+                    biodata.biodataId = lastId + 1;
+
+                    // Insert the biodata into the collection
+                    const result = await biodataCollection.insertOne(biodata);
+                    res.status(201).json({ message: "Biodata created successfully", result });
+                }
+            } catch (error) {
+                console.error("Error creating/updating biodata:", error);
+                res.status(500).send({ error: "Failed to create or update biodata" });
+            }
+        });
 
 
 
