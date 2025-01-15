@@ -27,6 +27,7 @@ async function run() {
 
         const database = client.db("soulmatchDb");
         const userCollection = database.collection("users");
+        const biodataCollection = database.collection("biodatas");
 
         // jwt api
 
@@ -67,7 +68,7 @@ async function run() {
 
         // User Collection
 
-        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+        app.get('/users', verifyToken, async (req, res) => {
             const users = await userCollection.find().toArray();
             res.send(users);
         });
@@ -107,7 +108,7 @@ async function run() {
 
 
         // Update User Role
-        app.patch('/users/role/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.patch('/users/role/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const { role } = req.body; // Expecting role: 'admin', 'premium', or 'normal'
             const filter = { _id: new ObjectId(id) };
@@ -119,7 +120,7 @@ async function run() {
         });
 
 
-        app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/users/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await userCollection.deleteOne(query);
