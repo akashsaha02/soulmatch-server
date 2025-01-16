@@ -195,8 +195,6 @@ async function run() {
 
 
         // Favourites Collection
-
-
         app.get('/favourites', verifyToken, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
@@ -206,6 +204,20 @@ async function run() {
 
         app.post('/favourites', verifyToken, async (req, res) => {
             const favourite = req.body;
+            const { email, favouriteEmail,favouriteBiodataId } = favourite;
+            // Check if the user is trying to add their own profile to favourites
+            if (email === favouriteEmail) {
+                return res.status(400).json({ message: 'You cannot add your own profile to favourites.' });
+            }
+            // Check if this user already added this biodata to their favourites
+            const existingFavourite = await favouritesCollection.findOne({
+                email: email,
+                favouriteBiodataId: favouriteBiodataId,
+            });
+            if (existingFavourite) {
+                return res.status(400).json({ message: 'Already added to favourites!' });
+            }
+            // If not, add the new favourite
             const result = await favouritesCollection.insertOne(favourite);
             res.json(result);
         });
