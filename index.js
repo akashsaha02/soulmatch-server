@@ -33,6 +33,7 @@ async function run() {
         const database = client.db("soulmatchDb");
         const userCollection = database.collection("users");
         const biodataCollection = database.collection("biodatas");
+        const favouritesCollection = database.collection("favourites");
 
         // jwt api
 
@@ -149,7 +150,7 @@ async function run() {
             }
         });
 
-        app.get('/biodatas/details/:id',verifyToken, async (req, res) => {
+        app.get('/biodatas/details/:id', verifyToken, async (req, res) => {
             try {
                 const id = req.params.id;
                 const biodata = await biodataCollection.findOne({ _id: new ObjectId(id) });
@@ -190,6 +191,30 @@ async function run() {
                 console.error("Error creating/updating biodata:", error);
                 res.status(500).send({ error: "Failed to create or update biodata" });
             }
+        });
+
+
+        // Favourites Collection
+
+
+        app.get('/favourites', verifyToken, async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const result = await favouritesCollection.find(query).toArray();
+            res.send(result);
+        });
+
+        app.post('/favourites', verifyToken, async (req, res) => {
+            const favourite = req.body;
+            const result = await favouritesCollection.insertOne(favourite);
+            res.json(result);
+        });
+
+        app.delete('/favourites/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await favouritesCollection.deleteOne(query);
+            res.json(result);
         });
 
 
