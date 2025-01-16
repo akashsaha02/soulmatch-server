@@ -149,6 +149,16 @@ async function run() {
             }
         });
 
+        app.get('/biodatas/details/:id',verifyToken, async (req, res) => {
+            try {
+                const id = req.params.id;
+                const biodata = await biodataCollection.findOne({ _id: new ObjectId(id) });
+                res.send(biodata);
+            } catch (error) {
+                res.status(500).send({ error: "Failed to fetch biodata" });
+            }
+        });
+
         // Create a new biodata
         app.post('/biodatas', verifyToken, async (req, res) => {
             try {
