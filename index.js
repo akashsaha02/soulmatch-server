@@ -106,13 +106,6 @@ async function run() {
         app.post('/payments', verifyToken, async (req, res) => {
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
-
-            // const query = {
-            //     _id: {
-            //         $in: payment.cartItemIds.map((id) => new ObjectId(id))
-            //     }
-            // }
-            // const deleteResult = await cartsCollection.deleteMany(query);
             res.json(result);
         });
 
@@ -300,6 +293,10 @@ async function run() {
             const result = await favouritesCollection.deleteOne(query);
             res.json(result);
         });
+
+
+        // contact request api
+
 
 
 
