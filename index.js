@@ -8,6 +8,7 @@ require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 // middlewares
 app.use(cors(
@@ -34,6 +35,8 @@ async function run() {
         const userCollection = database.collection("users");
         const biodataCollection = database.collection("biodatas");
         const favouritesCollection = database.collection("favourites");
+        const paymentsCollection = database.collection("payments");
+        const contactRequestCollection = database.collection("contactRequests");
 
         // jwt api
 
@@ -70,6 +73,75 @@ async function run() {
             }
             next();
         }
+
+
+
+
+        // payment stripe api
+
+        app.post("/create-payment-intent", verifyToken, async (req, res) => {
+            const { price } = req.body;
+            console.log(price);
+            // const amount = price * 100;
+            // const amount = price * 100;
+
+            // Create a PaymentIntent with the order amount and currency
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: price,
+                currency: "usd",
+                // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+
+        // payment contact req api
+
+        app.post('/payments', verifyToken, async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+
+            // const query = {
+            //     _id: {
+            //         $in: payment.cartItemIds.map((id) => new ObjectId(id))
+            //     }
+            // }
+            // const deleteResult = await cartsCollection.deleteMany(query);
+            res.json(result);
+        });
+
+        app.get('/payments/:email', verifyToken, async (req, res) => {
+
+            const query = { email: req.params.email }
+            if (req.params.email !== req.decoded.email) {
+                return res.status(403).send({ message: 'Forbidden request' });
+            }
+            const payments = await paymentsCollection.find(query).toArray();
+            res.send(payments);
+        });
+
+
+        app.get('/payments', verifyToken, verifyAdmin, async (req, res) => {
+            const payments = await paymentsCollection.find().toArray();
+            res.send(payments);
+        });
+
+        app.patch('/payments/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const query = { _id: new ObjectId(id) };
+            const updateDoc = {
+                $set: payment,
+            };
+            const result = await paymentsCollection.updateOne(query, updateDoc);
+            res.json(result);
+        });
 
 
         // User Collection
@@ -204,7 +276,7 @@ async function run() {
 
         app.post('/favourites', verifyToken, async (req, res) => {
             const favourite = req.body;
-            const { email, favouriteEmail,favouriteBiodataId } = favourite;
+            const { email, favouriteEmail, favouriteBiodataId } = favourite;
             // Check if the user is trying to add their own profile to favourites
             if (email === favouriteEmail) {
                 return res.status(400).json({ message: 'You cannot add your own profile to favourites.' });
