@@ -35,7 +35,7 @@ async function run() {
         const userCollection = database.collection("users");
         const biodataCollection = database.collection("biodatas");
         const favouritesCollection = database.collection("favourites");
-        const paymentsCollection = database.collection("payments");
+        // const paymentsCollection = database.collection("payments");
         const contactRequestCollection = database.collection("contactRequests");
 
         // jwt api
@@ -105,36 +105,73 @@ async function run() {
 
         app.post('/payments', verifyToken, async (req, res) => {
             const payment = req.body;
-            const result = await paymentsCollection.insertOne(payment);
+            const result = await contactRequestCollection.insertOne(payment);
             res.json(result);
         });
 
-        app.get('/payments/:email', verifyToken, async (req, res) => {
 
-            const query = { email: req.params.email }
-            if (req.params.email !== req.decoded.email) {
-                return res.status(403).send({ message: 'Forbidden request' });
+
+        app.get('/contact-requests', verifyToken, async (req, res) => {
+            const email = req.query.email;
+
+            if (!email) {
+                return res.status(400).json({ message: "Email is required." });
             }
-            const payments = await paymentsCollection.find(query).toArray();
-            res.send(payments);
+
+            try {
+                const requests = await contactRequestCollection.find({ email }).toArray();
+                res.json(requests);
+            } catch (error) {
+                console.error("Error fetching contact requests:", error);
+                res.status(500).json({ message: "Failed to fetch contact requests." });
+            }
         });
 
-
-        app.get('/payments', verifyToken, verifyAdmin, async (req, res) => {
-            const payments = await paymentsCollection.find().toArray();
-            res.send(payments);
-        });
-
-        app.patch('/payments/:id', verifyToken, verifyAdmin, async (req, res) => {
+        app.delete('/contact-requests/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
-            const payment = req.body;
             const query = { _id: new ObjectId(id) };
-            const updateDoc = {
-                $set: payment,
-            };
-            const result = await paymentsCollection.updateOne(query, updateDoc);
+            const result = await contactRequestCollection.deleteOne(query);
             res.json(result);
         });
+
+
+
+        app.patch('/admin/contact-requests/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const { biodataId } = req.body;
+            const parsedBiodataId = parseInt(biodataId);
+
+            const query = {
+
+                biodataId: parsedBiodataId
+
+            }
+            const biodata = await biodataCollection.findOne(query);
+            if (!biodata || !biodata.mobileNumber) {
+                return res.status(404).json({ message: "Biodata or mobile number not found." });
+            }
+            const result = await contactRequestCollection.updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { status: 'approved', mobileNumber: biodata.mobileNumber } }
+            );
+
+            if (result.matchedCount === 0) {
+                return res.status(404).json({ message: "Contact request not found." });
+            }
+
+            res.json({ message: "Contact request approved successfully." });
+
+        });
+
+
+
+
+        app.get('/admin/contact-requests', verifyToken, verifyAdmin, async (req, res) => {
+            const contactRequests = await contactRequestCollection.find().toArray();
+            res.send(contactRequests);
+        });
+
+
 
 
         // User Collection
