@@ -35,8 +35,8 @@ async function run() {
         const userCollection = database.collection("users");
         const biodataCollection = database.collection("biodatas");
         const favouritesCollection = database.collection("favourites");
-        // const paymentsCollection = database.collection("payments");
         const contactRequestCollection = database.collection("contactRequests");
+        const premiumRequestCollection = database.collection("premiumRequests");
 
         // jwt api
 
@@ -142,9 +142,7 @@ async function run() {
             const parsedBiodataId = parseInt(biodataId);
 
             const query = {
-
                 biodataId: parsedBiodataId
-
             }
             const biodata = await biodataCollection.findOne(query);
             if (!biodata || !biodata.mobileNumber) {
@@ -163,9 +161,6 @@ async function run() {
 
         });
 
-
-
-
         app.get('/admin/contact-requests', verifyToken, verifyAdmin, async (req, res) => {
             const contactRequests = await contactRequestCollection.find().toArray();
             res.send(contactRequests);
@@ -173,10 +168,116 @@ async function run() {
 
 
 
+        // Premium requests
+
+
+        app.post('/request-premium/:id', verifyToken, async (req, res) => {
+            const id = req.params.id;
+
+            try {
+                const query = { _id: new ObjectId(id) };
+                const biodata = await biodataCollection.findOne(query);
+
+                if (!biodata) {
+                    return res.status(404).send({ message: 'Biodata not found' });
+                }
+
+                // Check if a request already exists
+                const existingRequest = await premiumRequestCollection.findOne({
+                    biodataUniqueId: id,
+                    userEmail: biodata.userEmail,
+                });
+
+                if (existingRequest) {
+                    return res.status(400).send({ message: 'Premium request already exists for this user and biodata' });
+                }
+
+                // Create a new premium request
+                const requestPremium = {
+                    biodataUniqueId: id,
+                    biodataId: biodata.biodataId,
+                    userEmail: biodata.userEmail,
+                    userName: biodata.name,
+                    status: 'pending',
+                };
+
+                const result = await premiumRequestCollection.insertOne(requestPremium);
+                res.send(result);
+            } catch (error) {
+                console.error('Error creating premium request:', error);
+                res.status(500).send({ message: 'Internal server error' });
+            }
+        });
+
+        app.get('/request-premium', verifyToken, verifyAdmin, async (req, res) => {
+            const requests = await premiumRequestCollection.find().toArray();
+            res.send(requests);
+        })
+
+        app.get('/request-premium/:email', verifyToken, async (req, res) => {
+            const email = req.params.email
+            const requests = await premiumRequestCollection.find({ userEmail: email }).toArray();
+            res.send(requests);
+        })
+
+        app.patch('/admin/premium-requests/:id/approve', verifyToken, verifyAdmin, async (req, res) => {
+            const { id } = req.params;
+            const { userEmail } = req.body;
+
+            try {
+                // Update the request status to 'approved'
+                await premiumRequestCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { status: 'approved' } }
+                );
+
+                // Update the user role to 'premium'
+                await userCollection.updateOne(
+                    { email: userEmail },
+                    { $set: { role: 'premium' } }
+                );
+
+                res.send({ message: 'Request approved and user role updated' });
+            } catch (error) {
+                console.error("Error approving request:", error);
+                res.status(500).send({ message: 'Failed to approve request' });
+            }
+        });
+
+
+        app.delete('/admin/premium-requests/:id', verifyToken, async (req, res) => {
+            const { id } = req.params;
+
+            try {
+                const result = await premiumRequestCollection.deleteOne({
+                    _id: new ObjectId(id),
+                });
+                res.send(result);
+            } catch (error) {
+                console.error("Error deleting request:", error);
+                res.status(500).send({ message: 'Failed to delete request' });
+            }
+        });
+
+
+
+
+
+
 
         // User Collection
 
-        app.get('/users', verifyToken, async (req, res) => {
+        app.get('/users/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            if (email !== req.decoded.email) {
+                return res.status(403).send({ message: 'Forbidden request' });
+            }
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            res.send(user);
+        });
+
+        app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
             const users = await userCollection.find().toArray();
             res.send(users);
         });
@@ -212,7 +313,7 @@ async function run() {
         });
 
         // Update User Role
-        app.patch('/users/role/:id', verifyToken, async (req, res) => {
+        app.patch('/users/role/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const { role } = req.body; // Expecting role: 'admin', 'premium', or 'normal'
             const filter = { _id: new ObjectId(id) };
@@ -224,7 +325,7 @@ async function run() {
         });
 
 
-        app.delete('/users/:id', verifyToken, async (req, res) => {
+        app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await userCollection.deleteOne(query);
@@ -332,7 +433,6 @@ async function run() {
         });
 
 
-        // contact request api
 
 
 
