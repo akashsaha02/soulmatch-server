@@ -13,7 +13,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 // middlewares
 app.use(cors(
     {
-        origin: 'http://localhost:5173',
+        origin: ['http://localhost:5173','https://soulmatch-b2923.web.app','https://soulmatch-b2923.firebase.app' ],
         credentials: true
     }
 ));
@@ -81,9 +81,7 @@ async function run() {
 
         app.post("/create-payment-intent", verifyToken, async (req, res) => {
             const { price } = req.body;
-            console.log(price);
-            // const amount = price * 100;
-            // const amount = price * 100;
+           
 
             // Create a PaymentIntent with the order amount and currency
             const paymentIntent = await stripe.paymentIntents.create({
@@ -448,7 +446,7 @@ run().catch(console.dir);
 
 
 app.get('/', (req, res) => {
-    res.send('Bistro Boss Server!');
+    res.send('Soul match Server!');
 });
 
 
