@@ -1,6 +1,3 @@
-// ko7Cq1hUOi6lSEoV
-// tenet025
-
 const express = require('express');
 const app = express();
 const cors = require('cors');
@@ -13,7 +10,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 // middlewares
 app.use(cors(
     {
-        origin: ['http://localhost:5173','https://soulmatch-b2923.web.app','https://soulmatch-b2923.firebase.app' ],
+        origin: ['http://localhost:5173', 'https://soulmatch-b2923.web.app', 'https://soulmatch-b2923.firebase.app'],
         credentials: true
     }
 ));
@@ -46,7 +43,7 @@ async function run() {
             res.send({ token })
         });
 
-        // middlewares
+        // middleware functions
         const verifyToken = (req, res, next) => {
             // console.log(req.headers.authorization)
             if (!req.headers.authorization) {
@@ -73,16 +70,11 @@ async function run() {
             }
             next();
         }
-
-
-
+        // middleware function end
 
         // payment stripe api
-
         app.post("/create-payment-intent", verifyToken, async (req, res) => {
             const { price } = req.body;
-           
-
             // Create a PaymentIntent with the order amount and currency
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: price,
@@ -99,15 +91,13 @@ async function run() {
         });
 
 
-        // payment contact req api
+        // payment contact request api
 
         app.post('/payments', verifyToken, async (req, res) => {
             const payment = req.body;
             const result = await contactRequestCollection.insertOne(payment);
             res.json(result);
         });
-
-
 
         app.get('/contact-requests', verifyToken, async (req, res) => {
             const email = req.query.email;
@@ -131,8 +121,6 @@ async function run() {
             const result = await contactRequestCollection.deleteOne(query);
             res.json(result);
         });
-
-
 
         app.patch('/admin/contact-requests/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
@@ -164,11 +152,7 @@ async function run() {
             res.send(contactRequests);
         });
 
-
-
-        // Premium requests
-
-
+        // Premium User Requests
         app.post('/request-premium/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
 
@@ -185,11 +169,9 @@ async function run() {
                     biodataUniqueId: id,
                     userEmail: biodata.userEmail,
                 });
-
                 if (existingRequest) {
                     return res.status(400).send({ message: 'Premium request already exists for this user and biodata' });
                 }
-
                 // Create a new premium request
                 const requestPremium = {
                     biodataUniqueId: id,
@@ -198,7 +180,6 @@ async function run() {
                     userName: biodata.name,
                     status: 'pending',
                 };
-
                 const result = await premiumRequestCollection.insertOne(requestPremium);
                 res.send(result);
             } catch (error) {
@@ -228,12 +209,16 @@ async function run() {
                     { _id: new ObjectId(id) },
                     { $set: { status: 'approved' } }
                 );
-
                 // Update the user role to 'premium'
                 await userCollection.updateOne(
                     { email: userEmail },
                     { $set: { role: 'premium' } }
                 );
+
+                await biodataCollection.updateOne(
+                    { userEmail: userEmail },
+                    { $set: { isPremium: true } }
+                )
 
                 res.send({ message: 'Request approved and user role updated' });
             } catch (error) {
@@ -241,7 +226,6 @@ async function run() {
                 res.status(500).send({ message: 'Failed to approve request' });
             }
         });
-
 
         app.delete('/admin/premium-requests/:id', verifyToken, async (req, res) => {
             const { id } = req.params;
@@ -257,14 +241,7 @@ async function run() {
             }
         });
 
-
-
-
-
-
-
         // User Collection
-
         app.get('/users/:email', verifyToken, async (req, res) => {
             const email = req.params.email;
             if (email !== req.decoded.email) {
@@ -302,10 +279,8 @@ async function run() {
                 res.send({ message: 'User already exists', insertedId: existingUser._id });
                 return;
             }
-
             // Set default role to "normal" if not provided
             user.role = user.role || 'normal';
-
             const result = await userCollection.insertOne(user);
             res.json(result);
         });
@@ -322,14 +297,12 @@ async function run() {
             res.json(result);
         });
 
-
         app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const result = await userCollection.deleteOne(query);
             res.json(result);
         });
-
 
         // Fetch all biodatas
         app.get('/biodatas', async (req, res) => {
@@ -394,7 +367,6 @@ async function run() {
             }
         });
 
-
         // Favourites Collection
         app.get('/favourites', verifyToken, async (req, res) => {
             const email = req.query.email;
@@ -429,11 +401,6 @@ async function run() {
             const result = await favouritesCollection.deleteOne(query);
             res.json(result);
         });
-
-
-
-
-
 
     } finally {
         // Ensures that the client will close when you finish/error
