@@ -34,6 +34,7 @@ async function run() {
         const favouritesCollection = database.collection("favourites");
         const contactRequestCollection = database.collection("contactRequests");
         const premiumRequestCollection = database.collection("premiumRequests");
+        const successStoryCollection = database.collection("successStories");
 
         // jwt api
 
@@ -267,6 +268,8 @@ async function run() {
             let isAdmin = false;
             if (user.role === 'admin') {
                 isAdmin = true;
+            } else {
+                isAdmin = false;
             }
             res.send(isAdmin);
         });
@@ -366,6 +369,57 @@ async function run() {
                 res.status(500).send({ error: "Failed to create or update biodata" });
             }
         });
+
+        //Success Stories
+        app.post('/success-stories', verifyToken, async (req, res) => {
+            try {
+                const { selfBiodataId, partnerBiodataId, coupleImage, successStory } = req.body;
+        
+                // Fetch biodata for self and partner
+                const selfBiodata = await biodataCollection.findOne({ biodataId: parseInt(selfBiodataId) });
+                const partnerBiodata = await biodataCollection.findOne({ biodataId: parseInt(partnerBiodataId) });
+        
+                if (!selfBiodata || !partnerBiodata) {
+                    return res.status(404).json({ error: 'One or both biodatas not found' });
+                }
+        
+                // Extract required fields
+                const selfDetails = {
+                    name: selfBiodata.name,
+                    photo: selfBiodata.profileImage,
+                    birthday: selfBiodata.dob,
+                    occupation: selfBiodata.occupation,
+                };
+        
+                const partnerDetails = {
+                    name: partnerBiodata.name,
+                    photo: partnerBiodata.profileImage,
+                    birthday: partnerBiodata.dob,
+                    occupation: partnerBiodata.occupation,
+                };
+        
+                // Combine into the success story object
+                const story = {
+                    selfBiodataId,
+                    partnerBiodataId,
+                    selfDetails,
+                    partnerDetails,
+                    coupleImage,
+                    successStory,
+                    date: new Date(),
+                };
+        
+                // Insert the success story into the collection
+                const result = await successStoryCollection.insertOne(story);
+        
+                // Return success response
+                res.json(result);
+            } catch (error) {
+                console.error('Error saving success story:', error);
+                res.status(500).json({ error: 'Failed to save success story' });
+            }
+        });
+        
 
         // Favourites Collection
         app.get('/favourites', verifyToken, async (req, res) => {
