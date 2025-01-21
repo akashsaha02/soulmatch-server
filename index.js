@@ -370,13 +370,13 @@ async function run() {
             }
         });
 
-        
+
 
         //Success Stories
         app.post('/success-stories', verifyToken, async (req, res) => {
             try {
                 const data = req.body;
-                const {selfBiodataId, partnerBiodataId, coupleImage, successStory, marriageDate, rating} = data;
+                const { selfBiodataId, partnerBiodataId, coupleImage, successStory, marriageDate, rating } = data;
 
                 // Fetch biodata for self and partner
                 const selfBiodata = await biodataCollection.findOne({ biodataId: parseInt(selfBiodataId) });
@@ -420,6 +420,17 @@ async function run() {
             } catch (error) {
                 console.error('Error saving success story:', error);
                 res.status(500).json({ error: 'Failed to save success story' });
+            }
+        });
+
+
+        app.get('/success-stories', async (req, res) => {
+            try {
+                const stories = await successStoryCollection.find().toArray();
+                res.send(stories);
+            } catch (error) {
+                console.error('Error fetching success stories:', error);
+                res.status(500).json({ error: 'Failed to fetch success stories' });
             }
         });
 
