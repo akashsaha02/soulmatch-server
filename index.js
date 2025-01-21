@@ -370,35 +370,38 @@ async function run() {
             }
         });
 
+        
+
         //Success Stories
         app.post('/success-stories', verifyToken, async (req, res) => {
             try {
-                const { selfBiodataId, partnerBiodataId, coupleImage, successStory } = req.body;
-        
+                const data = req.body;
+                const {selfBiodataId, partnerBiodataId, coupleImage, successStory, marriageDate, rating} = data;
+
                 // Fetch biodata for self and partner
                 const selfBiodata = await biodataCollection.findOne({ biodataId: parseInt(selfBiodataId) });
                 const partnerBiodata = await biodataCollection.findOne({ biodataId: parseInt(partnerBiodataId) });
-        
+
+                // Check if biodatas exist
                 if (!selfBiodata || !partnerBiodata) {
                     return res.status(404).json({ error: 'One or both biodatas not found' });
                 }
-        
-                // Extract required fields
+
+                // Extract required fields from biodatas
                 const selfDetails = {
                     name: selfBiodata.name,
                     photo: selfBiodata.profileImage,
                     birthday: selfBiodata.dob,
                     occupation: selfBiodata.occupation,
                 };
-        
+
                 const partnerDetails = {
                     name: partnerBiodata.name,
                     photo: partnerBiodata.profileImage,
                     birthday: partnerBiodata.dob,
                     occupation: partnerBiodata.occupation,
                 };
-        
-                // Combine into the success story object
+
                 const story = {
                     selfBiodataId,
                     partnerBiodataId,
@@ -406,20 +409,21 @@ async function run() {
                     partnerDetails,
                     coupleImage,
                     successStory,
-                    date: new Date(),
+                    marriageDate, // New field
+                    rating: parseFloat(rating), // New field
+                    date: new Date(), // Record the current timestamp
                 };
-        
-                // Insert the success story into the collection
+
                 const result = await successStoryCollection.insertOne(story);
-        
                 // Return success response
-                res.json(result);
+                res.send(result);
             } catch (error) {
                 console.error('Error saving success story:', error);
                 res.status(500).json({ error: 'Failed to save success story' });
             }
         });
-        
+
+
 
         // Favourites Collection
         app.get('/favourites', verifyToken, async (req, res) => {
