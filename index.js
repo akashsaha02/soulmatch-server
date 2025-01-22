@@ -399,14 +399,12 @@ async function run() {
                     name: selfBiodata.name,
                     photo: selfBiodata.profileImage,
                     birthday: selfBiodata.dob,
-                    occupation: selfBiodata.occupation,
                 };
 
                 const partnerDetails = {
                     name: partnerBiodata.name,
                     photo: partnerBiodata.profileImage,
                     birthday: partnerBiodata.dob,
-                    occupation: partnerBiodata.occupation,
                 };
 
                 const story = {
@@ -470,6 +468,39 @@ async function run() {
             const result = await favouritesCollection.insertOne(favourite);
             res.json(result);
         });
+
+
+
+        app.get('/admin/stats', verifyToken, verifyAdmin, async (req, res) => {
+            try {
+                const stats = {
+                    users: await userCollection.countDocuments(),
+                    biodatas: await biodataCollection.countDocuments(),
+                    contactRequests: await contactRequestCollection.countDocuments(),
+                    premiumRequests: await premiumRequestCollection.countDocuments(),
+                    successStories: await successStoryCollection.countDocuments(),
+                    maleBiodataCount: await biodataCollection.countDocuments({ biodataType: 'Male' }),
+                    femaleBiodataCount: await biodataCollection.countDocuments({ biodataType: 'Female' }),
+                    premiumUsers: await userCollection.countDocuments({ role: 'premium' }),
+                    totalRevenue: (
+                        await contactRequestCollection.aggregate([
+                            {
+                                $group: {
+                                    _id: null, // Group all documents together
+                                    totalAmount: { $sum: "$amount" }, // Corrected field reference
+                                },
+                            },
+                        ]).toArray() // Convert the aggregation cursor to an array
+                    )[0]?.totalAmount || 0, // Safely access totalAmount and default to 0 if undefined
+                };
+        
+                res.send(stats);
+            } catch (err) {
+                console.error("Error fetching stats:", err);
+                res.status(500).json({ error: "Failed to fetch stats" });
+            }
+        });
+        
 
         app.delete('/favourites/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
