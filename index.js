@@ -481,7 +481,7 @@ async function run() {
                     successStories: await successStoryCollection.countDocuments(),
                     maleBiodataCount: await biodataCollection.countDocuments({ biodataType: 'Male' }),
                     femaleBiodataCount: await biodataCollection.countDocuments({ biodataType: 'Female' }),
-                    premiumUsers: await userCollection.countDocuments({ role: 'premium' }),
+                    premiumBiodatas: await biodataCollection.countDocuments({ isPremium: true }),
                     totalRevenue: (
                         await contactRequestCollection.aggregate([
                             {
