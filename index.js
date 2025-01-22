@@ -294,7 +294,6 @@ async function run() {
             const { role, email } = req.body; // Expecting role: 'admin', 'premium', or 'normal'
             const emailQuery = { userEmail: email };
             const updateBiodata = { $set: { isPremium: true } };
-            console.log(email, role)
             if (role == 'premium') {
                 await biodataCollection.updateOne(emailQuery, updateBiodata);
             } else {
