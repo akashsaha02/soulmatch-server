@@ -291,7 +291,15 @@ async function run() {
         // Update User Role
         app.patch('/users/role/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
-            const { role } = req.body; // Expecting role: 'admin', 'premium', or 'normal'
+            const { role, email } = req.body; // Expecting role: 'admin', 'premium', or 'normal'
+            const emailQuery = { userEmail: email };
+            const updateBiodata = { $set: { isPremium: true } };
+            console.log(email, role)
+            if (role == 'premium') {
+                await biodataCollection.updateOne(emailQuery, updateBiodata);
+            } else {
+                await biodataCollection.updateOne(emailQuery, { $set: { isPremium: false } });
+            }
             const filter = { _id: new ObjectId(id) };
             const updateDoc = {
                 $set: { role },
