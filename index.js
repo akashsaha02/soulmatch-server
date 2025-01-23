@@ -253,9 +253,32 @@ async function run() {
             res.send(user);
         });
 
+        // app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
+        //     const users = await userCollection.find().toArray();
+        //     res.send(users);
+        // });
+
+
         app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
-            const users = await userCollection.find().toArray();
-            res.send(users);
+            const { page = 1, limit = 6, search = "" } = req.query;
+            const skip = (page - 1) * limit;
+        
+            const query = {
+                $or: [
+                    { name: { $regex: search, $options: "i" } }, // Case-insensitive search on name
+                    { email: { $regex: search, $options: "i" } }, // Case-insensitive search on email
+                ],
+            };
+        
+            const users = await userCollection.find(query).skip(skip).limit(parseInt(limit)).toArray();
+            const totalUsers = await userCollection.countDocuments(query);
+        
+            res.send({
+                users,
+                totalUsers,
+                totalPages: Math.ceil(totalUsers / limit),
+                currentPage: parseInt(page),
+            });
         });
 
         app.get('/users/admin/:email', verifyToken, async (req, res) => {
