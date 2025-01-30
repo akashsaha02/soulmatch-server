@@ -80,7 +80,6 @@ async function run() {
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: price,
                 currency: "usd",
-                // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
                 automatic_payment_methods: {
                     enabled: true,
                 },
@@ -93,7 +92,6 @@ async function run() {
 
 
         // payment contact request api
-
         app.post('/payments', verifyToken, async (req, res) => {
             const payment = req.body;
             const result = await contactRequestCollection.insertOne(payment);
@@ -253,10 +251,6 @@ async function run() {
             res.send(user);
         });
 
-        // app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
-        //     const users = await userCollection.find().toArray();
-        //     res.send(users);
-        // });
 
 
         app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
