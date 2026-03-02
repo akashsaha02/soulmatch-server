@@ -10,14 +10,18 @@ export async function verifyToken(req: Request, res: Response, next: NextFunctio
   }
 
   const token = req.headers.authorization.split(' ')[1];
-  jwt.verify(token, env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-    if (err) {
-      res.status(403).send({ message: 'Forbidden request' });
-      return;
-    }
-    req.decoded = decoded as { email: string };
+  if (!token) {
+    res.status(401).send({ message: 'Unauthorized request' });
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(token, env.ACCESS_TOKEN_SECRET) as { email: string };
+    req.decoded = decoded;
     next();
-  });
+  } catch {
+    res.status(403).send({ message: 'Forbidden request' });
+  }
 }
 
 export async function verifyAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {

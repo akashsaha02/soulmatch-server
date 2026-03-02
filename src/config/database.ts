@@ -11,8 +11,18 @@ const client = new MongoClient(env.MONGO_URI, {
 
 const DB_NAME = 'soulmatchDb';
 
+let connectionPromise: Promise<void> | null = null;
+
 export async function connectDatabase(): Promise<void> {
-  await client.connect();
+  if (!connectionPromise) {
+    connectionPromise = client.connect().then(() => {});
+  }
+  await connectionPromise;
+}
+
+/** Ensures DB is connected; caches the promise so we only connect once. */
+export async function ensureDatabaseConnected(): Promise<void> {
+  await connectDatabase();
 }
 
 export function getCollections() {
