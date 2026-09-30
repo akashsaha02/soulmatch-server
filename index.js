@@ -135,7 +135,7 @@ async function run() {
             }
             const result = await contactRequestCollection.updateOne(
                 { _id: new ObjectId(id) },
-                { $set: { status: 'approved', mobileNumber: biodata.mobileNumber } }
+                { $set: { status: 'approved', mobileNumber: biodata.mobileNumber, contactEmail: biodata.userEmail, name: biodata.name } }
             );
 
             if (result.matchedCount === 0) {
@@ -332,12 +332,78 @@ async function run() {
         });
 
         // Fetch all biodatas
+        // Without `page` this returns every biodata (legacy array shape).
+        // With `page` it filters, sorts and paginates on the server.
         app.get('/biodatas', async (req, res) => {
             try {
-                const biodatas = await biodataCollection.find().toArray();
-                res.send(biodatas);
+                if (!req.query.page) {
+                    const biodatas = await biodataCollection.find().toArray();
+                    return res.send(biodatas);
+                }
+
+                const { gender, division, premium, minAge, maxAge, search, sort = 'newest' } = req.query;
+                const page = Math.max(parseInt(req.query.page) || 1, 1);
+                const limit = Math.min(Math.max(parseInt(req.query.limit) || 12, 1), 48);
+
+                const query = {};
+                if (gender) query.biodataType = gender;
+                if (division) query.permanentDivision = division;
+                if (premium === 'true') query.isPremium = true;
+                if (search) {
+                    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    query.name = { $regex: escaped, $options: 'i' };
+                }
+
+                // Age bounds become dob bounds: age >= minAge means born on/before today - minAge years.
+                const today = new Date();
+                const yearsAgo = (years) => new Date(today.getFullYear() - years, today.getMonth(), today.getDate());
+                const dobAsDate = { $convert: { input: '$dob', to: 'date', onError: null, onNull: null } };
+                const dobConditions = [];
+                if (minAge) dobConditions.push({ $lte: [dobAsDate, yearsAgo(parseInt(minAge))] });
+                if (maxAge) dobConditions.push({ $gt: [dobAsDate, yearsAgo(parseInt(maxAge) + 1)] });
+                if (dobConditions.length) query.$expr = { $and: dobConditions };
+
+                const sortOptions = {
+                    newest: { _id: -1 },
+                    id: { biodataId: 1 },
+                    ageAsc: { dob: -1 },
+                    ageDesc: { dob: 1 },
+                };
+
+                const [biodatas, total] = await Promise.all([
+                    biodataCollection
+                        .find(query)
+                        .sort(sortOptions[sort] || sortOptions.newest)
+                        .skip((page - 1) * limit)
+                        .limit(limit)
+                        .toArray(),
+                    biodataCollection.countDocuments(query),
+                ]);
+
+                res.send({
+                    biodatas,
+                    total,
+                    totalPages: Math.ceil(total / limit),
+                    currentPage: page,
+                });
             } catch (error) {
                 res.status(500).send({ error: "Failed to fetch biodatas" });
+            }
+        });
+
+        // Public counts for the home page. Declared before /biodatas/:email so it isn't matched as an email.
+        app.get('/biodatas/stats', async (req, res) => {
+            try {
+                const [total, male, female, premium, marriages] = await Promise.all([
+                    biodataCollection.countDocuments(),
+                    biodataCollection.countDocuments({ biodataType: 'Male' }),
+                    biodataCollection.countDocuments({ biodataType: 'Female' }),
+                    biodataCollection.countDocuments({ isPremium: true }),
+                    successStoryCollection.countDocuments(),
+                ]);
+                res.send({ total, male, female, premium, marriages });
+            } catch (error) {
+                res.status(500).send({ error: "Failed to fetch stats" });
             }
         });
 
